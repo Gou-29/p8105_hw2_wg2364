@@ -1,0 +1,184 @@
+---
+title: "Homework 2"
+author: "Wenhao Gou"
+date: "2020.9.24"
+output: github_document
+---
+
+## 0. Overview and preparation
+
+This is the solution of homework 2 for course P8105. To setup, we need to import package `tidyvers` and `readxl`
+```{r Include_packages, message = FALSE}
+#Include packages
+library(tidyverse)
+library(readxl)
+```
+
+## 1.Solution of Question 1
+### 1.1 Read and clean the Mr. Trash Wheel sheet 
+* Specify the sheet in the Excel file and to omit non-data entries (rows with notes / figures; columns containing notes) using arguments in read_excel
+* Use reasonable variable names
+* Omit rows that do not include dumpster-specific data
+* Round the number of sports balls to the nearest integer and converts the result to an integer variable (using `as.integer`)
+
+```{r Q1_Read_Trash_Wheel_Sheet, warning = F, collapse = T}
+#Read Mr. Trash Wheel Sheet
+trash_wheel_df <- read_xlsx("./Datasets/Trash-Wheel-Collection-Totals-8-6-19.xlsx", sheet = "Mr. Trash Wheel" , range = cell_cols("A:N")) %>%
+  janitor::clean_names() %>% 
+  drop_na(dumpster) %>%
+  mutate(sports_balls = round(sports_balls, digits = 0)) %>%
+  mutate(sports_balls = as.integer(sports_balls)) %>%
+  relocate(dumpster,month,year,date,sports_balls)
+trash_wheel_df
+```
+
+
+### 1.2 Read and clean precipitation data for 2017 and 2018.
+In this problem, we need to read and clean precipitation data for 2017 and 2018. For each, omit rows without precipitation data and add a variable year. Next, combine precipitation datasets and convert month to a character variable
+
+```{r Q1_Read_and_modify_precipitation_data, collapse = T}
+#Read the year 2018 precipitation data
+precipitation_2018 <- read_xlsx("./Datasets/Trash-Wheel-Collection-Totals-8-6-19.xlsx", 
+                                sheet = "2018 Precipitation" , range = "A2:B14") %>% 
+  janitor::clean_names() %>%
+  drop_na(total) %>%
+  mutate(year = 2018) 
+#Read the year 2017 precipitation data
+precipitation_2017 <- read_xlsx("./Datasets/Trash-Wheel-Collection-Totals-8-6-19.xlsx", 
+                                sheet = "2017 Precipitation" , range = "A2:B14") %>% 
+  janitor::clean_names() %>%
+  drop_na(total) %>%
+  mutate(year = 2017)
+#Combine these two tibble and add month name
+month_df <- tibble(
+  month = as.double(c(1:12)),
+  month_name = month.name
+)
+precipitation_all <- bind_rows(precipitation_2017, precipitation_2018) %>%
+  left_join(., month_df, by = "month") %>%
+  select(-month) %>%
+  rename(month = month_name) %>%
+  relocate(year, month)
+precipitation_all
+```
+
+### 1.3 Summary of the data
+The first dataset is the data of Mr. Trash Wheel from May.2014 to Jun.2019. In the filtered dataset, we have 344 observations with  14 variables, names: ``r names(trash_wheel_df)``. The  variable `dumpster` is the column number, and the other variables are the statistics about different type of trash collected on that day. The variable `homes_powered` indicate that how this wheel have contributed to the community by providing electric. On average, the Wheel can capture , ``r mean(pull(trash_wheel_df,weight_tons))`` tons, ``r mean(pull(trash_wheel_df,volume_cubic_yards))``cubic yards trash per day. For different type of trash, on average, the Wheel can capture ``r mean(pull(trash_wheel_df,sports_balls))`` sports balls, ``r mean(pull(trash_wheel_df,plastic_bottles))`` plastic bottles, ``r mean(pull(trash_wheel_df,polystyrene))`` polystyrene, ``r mean(pull(trash_wheel_df,cigarette_butts))`` cigarette butts, ``r mean(pull(trash_wheel_df,glass_bottles))`` glass bottles, ``r mean(pull(trash_wheel_df,grocery_bags))`` grocery bags and ``r mean(pull(trash_wheel_df,chip_bags))`` chip bags. Specifically, the median number of sports balls in a dumpster in 2017 is ``r filter(trash_wheel_df,year==2017)%>%pull(sports_balls)%>%median()``
+
+The second dataset is the precipitation level of the location of the Wheel in year 2017 and 2018. The total precipitation in 2017 is ``r filter(precipitation_all,year==2017)%>%pull(total)%>%sum()``, and ``r filter(precipitation_all,year==2018)%>%pull(total)%>%sum()`` in 2018
+
+## 2. Solution of Quesiton 2
+### 2.1 Import and clean the NYC subway data
+Read and clean the data; retain line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance. Convert the entry variable from character (YES vs NO) to a logical variable.
+```{r Q2_Import_NYC_Data, message = F, collapse = T}
+#Read and clean NYC subway data
+NYC_subway <- read_csv("./Datasets/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") %>%
+  janitor::clean_names() %>% 
+  select(line, station_name, station_latitude, station_longitude, route1:route11, entry, vending, entrance_type, ada) %>%
+  mutate(entry = recode(entry, "YES" = T, "NO" = F))
+NYC_subway
+```
+
+This data contains the geographic information, transfer information and characteristics of the station. The data cleaning process are as follow: firstly, use `read_csv` function to read the csv file. Then, use `clean-names` function to clean the variable and content names. Next, use `select` function to pull the variable we are interested in, and finally, use `mutate` and `recode` function to transfer characters into logic variables. 
+In the result dataset, the size of the dataset is 1868 * 19. The variable names are: ``line, station_name, station_latitude, station_longitude, route 1 - 11, entry, vending, entrance_type, ada``. The first two variable is the line place and name of the station, the third and fourth variable are location of the station. Variables `route 1 - 11` are 11 variables indicate the transfer information of this station (e.g, if this station can transfer with 4 other routes, the variables `route 1- 4` will be filled with transfer information, and the remaining will be filled with `NA`. the logic variable `entry` indicate whether this station have entry (`TRUE` or `FALSE`), the `vending` variable indicate whether the station have vending machine(`YES` or `NO`), the `entrance_type` variable specified the entry type (with options: ``r levels(as.factor(pull(NYC_subway,entrance_type)))``), the `ada` variable is a logic variable describe whether this station is ADA compliant (`TRUE` or `FALSE`). 
+This data is not tidy enough as the data type among variables `route 1 - 11` are not the same (mix of `chr` and `dbl`)
+
+### 2.2 Answers to the following questions:
+* How many distinct stations are there? Note that stations are identified both by name and by line (e.g. 125th St A/B/C/D; 125st 1; 125st 4/5); the distinct function may be useful here.
+* How many stations are ADA compliant?
+* What proportion of station entrances / exits without vending allow entrance?
+* How many distinct stations serve the A train?
+* Of the stations that serve the A train, how many are ADA compliant?
+To answer these questions, we need to modify the dataset according to the number of station:
+```{r Q2_Modify_the_NYC_Data_By_Station, collapse = T }
+#How many stations?
+NYC_stations <- NYC_subway %>% 
+  distinct(.,station_name, route1, route2, route3, route4, route5, 
+           route6, route7, route8, route9, route10, route11, .keep_all = T)
+NYC_stations
+#Stations with ADA compliant
+NYC_stations %>% filter(ada == TRUE) %>% dim()
+#Proportion of station entrances / exits without vending allow entrance
+NYC_stations %>% filter(vending == "NO") %>% dim()
+#How many distinct stations serve the A train?
+NYC_stationsA <- NYC_stations %>% 
+  filter(route1 == "A"|route2 =="A"|route3 == "A"|route4 =="A"|
+           route5 == "A"|route6 =="A"|route7 == "A"|route8 =="A"|
+           route9 == "A"|route10 =="A"|route11 =="A")
+dim(NYC_stationsA)                          
+#Of the stations that serve the A train, how many are ADA compliant?
+NYC_stationsA %>% filter(ada == TRUE) %>% dim()
+```
+From the result, we can see that:
+
+* The size of the `NYC_stations` is 456 * 19, so there are 456 distinct stations in this dataset.
+* 79 stations are ADA compliant
+* 9 stations have no vending allow entrance
+* 58 stations serve the A train, and among these stations, 17 stations are ADA compliant
+
+## 3. Solution of Quesiton 3
+### 3.1 Clean `pols-month.csv`
+Requirement: Use `separate()` to break up the variable `mon` into integer variables `year`, `month`, and `day`; replace month number with month name; create a `president` variable taking values `gop` and `dem`, and remove `prez_dem` and `prez_gop`; and remove the day variable
+```{r Q3_Read_and_clean_pols-month.csv, message = F, collapse = T}
+#Read and clean pols_month.csv
+pol <- read_csv("./Datasets/pols-month.csv") %>%
+  janitor::clean_names() %>%
+  separate(mon,c("year","month","day")) %>%
+  mutate(year = as.integer(year), month = as.integer(month), day = as.integer(day)) %>%
+  mutate(month = recode(month, `1` = "Jan", `2` = "Feb", `3` = "Mar", `4` = "Apr",    #As my operation system is in
+                        `5` = "May" , `6`= "Jun", `7` = "Jul", `8` = "Aug",           #Chinese, if I use function 
+                        `9` = "Sep", `10` = "Oct", `11` = "Nov", `12` = "Dec")) %>%   #months, it will appear in Chinese. 
+  mutate(president = ifelse(prez_dem == 1, "dem", "gop")) %>%
+  select(-prez_dem,-prez_gop,-day) %>%
+  arrange(desc(row_number()))
+pol
+```
+
+This data contains 822 observations with 9 variable: ``r names(pol) ``. The meaning and some descriptive statistics of these variables are as follow:
+* `year` and `month`: Indication of year and month. Started from Jan. 1947 to Jun. 2015
+* `gov_gop`: the number of republican governors on the associated month
+* `sen_gop`: the number of republican senators on the associated month
+* `rep_gop`: the number of republican representatives on the associated month
+* `gov_dem`: the number of democratic governors on the associated month
+* `sen_dem`: the number of democratic senators on the associated month
+* `rep_dem`: the number of democratic representatives on the associated month
+* `president`: indicator of whether the president was republican or democratic on the associated month (`dem` = democratic, `gop` = republican)
+
+### 3.2 Clean `snp.csv`
+```{r Q3_Read_and_clean_snp.csv, message = F, collapse = T}
+#Read and clean snp.csv
+snp <- read_csv("./Datasets/snp.csv") %>%
+  janitor::clean_names() %>%separate(date,c("month","day","year")) %>%
+  mutate(year = as.integer(year), month = as.integer(month), day = as.integer(day)) %>%
+  mutate(month = recode(month, `1` = "Jan", `2` = "Feb", `3` = "Mar", `4` = "Apr",    
+                        `5` = "May" , `6`= "Jun", `7` = "Jul", `8` = "Aug",           
+                        `9` = "Sep", `10` = "Oct", `11` = "Nov", `12` = "Dec")) %>%   
+  select(year,month,close)
+snp
+```
+
+This data contains 787 observations with 3 variables. Variables `year` and `month`are descriptions of year and month, started from Jun.1950 to Jul.2015. The variable `snp` indicate the Standard & Poor’s stock market index (S&P), often used as a representative measure of stock market as a whole
+
+### 3.3 Clean `unemployment.csv`
+```{r Q3_Read_and_clean_unemployment.csv, message = F, collapse = T}
+#Read and claen unemployment.csv
+unemploy <- read_csv("./Datasets/unemployment.csv") %>%  
+  pivot_longer(Jan:Dec,
+               names_to = "month", 
+               values_to = "unemployment") %>%
+  select(year = Year,everything()) %>%
+  arrange(desc(row_number()))
+unemploy
+```
+
+This data contains 816 variable with 3 variables. Variables `year` and `month`are descriptions of year and month, started from Jun.1948 to Dec.2015. The variable `unemployment` is the percentage of unemployment in the relate month. 6 rows in unemployment are missing. 
+
+### 3.4 Merge into one dataset
+```{r Merge_three_dfs, message = F, collapse = T}
+#Combine these three tibbles
+result <- left_join(pol, snp, by = c("year","month")) %>% 
+  left_join(., unemploy, by = c("year","month"))
+result
+```
+
+As we set `pol` as the main dataset and all other datasets are merged into it, the final data set have 822 observations, which is same as `pol`.
