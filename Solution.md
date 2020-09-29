@@ -202,10 +202,9 @@ and `dbl`)
 ``` r
 #How many stations?
 NYC_stations <- NYC_subway %>% 
-  distinct(.,station_name, route1, route2, route3, route4, route5, 
-           route6, route7, route8, route9, route10, route11, .keep_all = T)
+  distinct(line,station_name, .keep_all = T)
 NYC_stations
-## # A tibble: 456 x 19
+## # A tibble: 465 x 19
 ##    line  station_name station_latitude station_longitu~ route1 route2 route3
 ##    <chr> <chr>                   <dbl>            <dbl> <chr>  <chr>  <chr> 
 ##  1 4 Av~ 25th St                  40.7            -74.0 R      <NA>   <NA>  
@@ -218,35 +217,71 @@ NYC_stations
 ##  8 4 Av~ 95th St                  40.6            -74.0 R      <NA>   <NA>  
 ##  9 4 Av~ 9th St                   40.7            -74.0 F      G      R     
 ## 10 4 Av~ Atlantic Av~             40.7            -74.0 B      Q      D     
-## # ... with 446 more rows, and 12 more variables: route4 <chr>, route5 <chr>,
+## # ... with 455 more rows, and 12 more variables: route4 <chr>, route5 <chr>,
 ## #   route6 <chr>, route7 <chr>, route8 <dbl>, route9 <dbl>, route10 <dbl>,
 ## #   route11 <dbl>, entry <lgl>, vending <chr>, entrance_type <chr>, ada <lgl>
 #Stations with ADA compliant
-NYC_stations %>% filter(ada == TRUE) %>% dim()
-## [1] 79 19
+NYC_stations %>% filter(ada == TRUE) %>% nrow()
+## [1] 84
 #Proportion of station entrances / exits without vending allow entrance
-NYC_stations %>% filter(vending == "NO") %>% dim()
-## [1]  9 19
+## Nominator = 
+NYC_subway %>% filter(vending == "NO") %>% filter(entry == T) %>% nrow() 
+## [1] 69
+## Denominator = 
+NYC_subway %>% filter(vending == "NO") %>% nrow()
+## [1] 183
 #How many distinct stations serve the A train?
 NYC_stationsA <- NYC_stations %>% 
   filter(route1 == "A"|route2 =="A"|route3 == "A"|route4 =="A"|
            route5 == "A"|route6 =="A"|route7 == "A"|route8 =="A"|
            route9 == "A"|route10 =="A"|route11 =="A")
-dim(NYC_stationsA)                          
-## [1] 58 19
+nrow(NYC_stationsA)                        
+## [1] 60
 #Of the stations that serve the A train, how many are ADA compliant?
-NYC_stationsA %>% filter(ada == TRUE) %>% dim()
-## [1] 17 19
+NYC_stationsA %>% filter(ada == TRUE) %>% nrow()
+## [1] 17
 ```
 
 From the result, we can see that:
 
-  - The size of the `NYC_stations` is 456 \* 19, so there are 456
+  - The size of the `NYC_stations` is 465 \* 19, so there are 456
     distinct stations in this dataset.
-  - 79 stations are ADA compliant
-  - 9 stations have no vending allow entrance
-  - 58 stations serve the A train, and among these stations, 17 stations
+  - 84 stations are ADA compliant
+  - Proportion of stations that have no vending allow entrance is
+    0.3770492
+  - 60 stations serve the A train, and among these stations, 17 stations
     are ADA compliant
+
+### 2.3 Tidy the data
+
+``` r
+NYC_stations_tidy <- NYC_stations %>%
+  mutate(route8 = as.character(route8),
+         route9 = as.character(route9),
+         route10 = as.character(route10),
+         route11 = as.character(route11)) %>%
+  pivot_longer(col = route1:route11,
+               names_to = "route_name", 
+               values_to = "route_number") %>%
+  arrange(route_name, route_number)
+NYC_stations_tidy
+```
+
+    ## # A tibble: 5,115 x 10
+    ##    line  station_name station_latitude station_longitu~ entry vending
+    ##    <chr> <chr>                   <dbl>            <dbl> <lgl> <chr>  
+    ##  1 Broa~ 103rd St                 40.8            -74.0 TRUE  YES    
+    ##  2 Broa~ 116th St-Co~             40.8            -74.0 TRUE  YES    
+    ##  3 Broa~ 125th St                 40.8            -74.0 TRUE  YES    
+    ##  4 Broa~ 137th St-Ci~             40.8            -74.0 TRUE  YES    
+    ##  5 Broa~ 145th St                 40.8            -74.0 TRUE  YES    
+    ##  6 Broa~ 157th St                 40.8            -73.9 TRUE  YES    
+    ##  7 Broa~ 181st St                 40.8            -73.9 TRUE  YES    
+    ##  8 Broa~ 18th St                  40.7            -74.0 TRUE  YES    
+    ##  9 Broa~ 191st St                 40.9            -73.9 TRUE  YES    
+    ## 10 Broa~ 207th St                 40.9            -73.9 TRUE  YES    
+    ## # ... with 5,105 more rows, and 4 more variables: entrance_type <chr>,
+    ## #   ada <lgl>, route_name <chr>, route_number <chr>
 
 ## 3\. Solution of Quesiton 3
 

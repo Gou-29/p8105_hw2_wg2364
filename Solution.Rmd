@@ -93,28 +93,46 @@ To answer these questions, we need to modify the dataset according to the number
 ```{r Q2_Modify_the_NYC_Data_By_Station, collapse = T }
 #How many stations?
 NYC_stations <- NYC_subway %>% 
-  distinct(.,station_name, route1, route2, route3, route4, route5, 
-           route6, route7, route8, route9, route10, route11, .keep_all = T)
+  distinct(line,station_name, .keep_all = T)
 NYC_stations
 #Stations with ADA compliant
-NYC_stations %>% filter(ada == TRUE) %>% dim()
+NYC_stations %>% filter(ada == TRUE) %>% nrow()
 #Proportion of station entrances / exits without vending allow entrance
-NYC_stations %>% filter(vending == "NO") %>% dim()
+## Nominator = 
+NYC_subway %>% filter(vending == "NO") %>% filter(entry == T) %>% nrow() 
+## Denominator = 
+NYC_subway %>% filter(vending == "NO") %>% nrow()
 #How many distinct stations serve the A train?
 NYC_stationsA <- NYC_stations %>% 
   filter(route1 == "A"|route2 =="A"|route3 == "A"|route4 =="A"|
            route5 == "A"|route6 =="A"|route7 == "A"|route8 =="A"|
            route9 == "A"|route10 =="A"|route11 =="A")
-dim(NYC_stationsA)                          
+nrow(NYC_stationsA)                        
 #Of the stations that serve the A train, how many are ADA compliant?
-NYC_stationsA %>% filter(ada == TRUE) %>% dim()
+NYC_stationsA %>% filter(ada == TRUE) %>% nrow()
 ```
 From the result, we can see that:
 
-* The size of the `NYC_stations` is 456 * 19, so there are 456 distinct stations in this dataset.
-* 79 stations are ADA compliant
-* 9 stations have no vending allow entrance
-* 58 stations serve the A train, and among these stations, 17 stations are ADA compliant
+* The size of the `NYC_stations` is 465 * 19, so there are 456 distinct stations in this dataset.
+* 84 stations are ADA compliant
+* Proportion of stations that have no vending allow entrance is `r 69/183`
+* 60 stations serve the A train, and among these stations, 17 stations are ADA compliant
+
+
+### 2.3 Tidy the data
+```{r Q2_tidy_the_data}
+NYC_stations_tidy <- NYC_stations %>%
+  mutate(route8 = as.character(route8),
+         route9 = as.character(route9),
+         route10 = as.character(route10),
+         route11 = as.character(route11)) %>%
+  pivot_longer(col = route1:route11,
+               names_to = "route_name", 
+               values_to = "route_number") %>%
+  arrange(route_name, route_number)
+NYC_stations_tidy
+```
+
 
 ## 3. Solution of Quesiton 3
 ### 3.1 Clean `pols-month.csv`
